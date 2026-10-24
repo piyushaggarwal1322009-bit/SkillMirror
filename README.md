@@ -1,279 +1,120 @@
 # SkillMirror AI
 
-**Turn one expert demonstration into an interactive, verifiable learning experience.**
+**Turn practical know-how into guided practice.**
 
-SkillMirror AI is a proposed AI-assisted practical-training platform. An instructor records a task, the system helps turn the recording into an editable step-by-step guide, and learners practise the task with visual checkpoints. Where the camera provides enough evidence, computer vision can flag a possible mistake or confirm that an observable step appears complete.
+SkillMirror is a hackathon prototype with a React/Vite frontend and a Node.js, TypeScript, Express, PostgreSQL, and Prisma backend.
 
-> **Project status:** The repository includes a working React + Vite frontend prototype. It supports local guide authoring and self-reported practice. There is no backend, AI inference, remote media upload, or automated verification yet.
+> **Status:** A browser-only workspace and a separate API-backed workspace are available. The API implements authentication, training and steps, sessions, private local uploads, human-reviewed attempts, and reports. No external AI inference or computer-vision verification is implemented.
 
-## The problem
+## Product
 
-Practical skills are often learned by watching an experienced person, following a manual, and receiving feedback through trial and error. This can make training difficult to scale when experienced instructors have limited time, instructions are inconsistent, or learners need repeated practice.
+SkillMirror is designed around **Watch → Learn → Practice → Verify → Improve**. Instructors create a task guide with materials, ordered steps, expected results, self-checks, safety notes, and retry tips. Learners follow it one step at a time and receive a report based on recorded practice.
 
-A video alone usually shows *what* an expert did, but it does not necessarily tell a learner whether their own attempt is correct.
+The current UI also provides a fictional paper-bridge example. The frontend-only workspace stores guides and self-checks in browser `localStorage`. Its video chooser only selects a file in the current tab; it does not upload or analyze it.
 
-## The solution
+### API workspace
 
-SkillMirror AI connects four stages in one workflow:
+Open **API workspace** in the app navigation to register or sign in and use server-backed records. It supports guide creation, step editing and reordering, publishing, session resume, private evidence upload, owner-only attempt review, and reports.
 
-1. **Record:** Capture an expert demonstrating a clearly defined task.
-2. **Structure:** Use AI to draft an ordered procedure, tools/materials list, checkpoints, and likely error points.
-3. **Practise:** Give the learner concise instructions and a reference for each step.
-4. **Verify:** Compare the learner's attempt with an approved reference or rule, explain possible issues, and ask for another view when the evidence is unclear.
+Evidence submissions with attached files enter `NEEDS_REVIEW`; submissions without evidence become `UNABLE_TO_VERIFY`. Only the project owner can review an attempt. Completion requires a human-reviewed `PASSED` result for the latest attempt on every step. Submitting evidence never passes a step automatically.
 
-The generated procedure remains editable and should be reviewed by a qualified instructor before it is used for training.
-
-## Core features
-
-### Current frontend prototype
-
-- Create, edit, reorder, and locally publish training guides.
-- Add a sample outline or write steps with expected results, self-checks, safety notes, retry tips, and reference image URLs.
-- Select a demonstration video locally by browsing or drag-and-drop. The file is not uploaded or analysed.
-- Practise a sample or saved guide, record self-checks, request help, retry steps, and view a practice summary.
-- Persist guides and practice records in browser `localStorage`; sample content remains separate from user-created guides.
-
-Checkpoint results are self-reported. The progress percentage counts steps marked complete; it is not a measure of skill mastery. Browser storage is local to this device and browser.
-
-### MVP priorities
-
-- **Task setup:** Create a task and describe its expected result.
-- **Demonstration intake:** Upload a short video of an expert performing the task.
-- **AI-assisted procedure draft:** Extract candidate steps and checkpoints from the demonstration.
-- **Instructor review:** Edit, reorder, approve, or remove generated steps before learners use them.
-- **Guided practice:** Present one step at a time with concise instructions and reference imagery.
-- **Visual checkpoints:** Check selected, observable states against a reference image or deterministic rule where technically feasible.
-- **Actionable feedback:** Explain what appears different and how to retry, without pretending to know when visual evidence is insufficient.
-- **Progress summary:** Show completed steps, steps needing another attempt, and items requiring instructor review.
-
-### Future enhancements
-
-- Adaptive practice based on recurring learner mistakes.
-- Multiple camera angles and improved object/hand tracking.
-- Instructor dashboards for multiple learners.
-- Task templates for vocational education, repair workshops, makerspaces, and small manufacturers.
-- Exportable training guides and assessment reports.
-- Support for multiple languages and accessibility options.
-
-## Example use case
-
-A workshop instructor demonstrates how to assemble a simple, non-hazardous mechanical object.
-
-1. The instructor uploads a short demonstration video.
-2. SkillMirror drafts an ordered set of steps and suggested checkpoints.
-3. The instructor edits and approves the procedure.
-4. A learner follows the steps and submits an image or camera frame at a checkpoint.
-5. The system returns one of three outcomes:
-   - **Appears to pass:** the visible evidence matches the approved criteria closely enough.
-   - **Needs another attempt:** a specific, observable difference was detected.
-   - **Unable to verify:** the camera view or available evidence is insufficient.
-6. The learner receives a progress summary.
-
-The first prototype should use a task whose correctness can be assessed from simple visual evidence. It should not begin with hazardous, medical, electrical, or other safety-critical procedures.
-
-## How it works
-
-```mermaid
-flowchart TD
-    A[Expert records a task] --> B[Extract frames and candidate steps]
-    B --> C[AI drafts procedure and checkpoints]
-    C --> D[Instructor reviews and approves]
-    D --> E[Learner follows guided steps]
-    E --> F[Capture checkpoint evidence]
-    F --> G{Evidence sufficient?}
-    G -- No --> H[Ask for a clearer view or instructor review]
-    G -- Yes --> I[Compare with approved criteria]
-    I --> J[Feedback and progress summary]
-    H --> E
-```
-
-## Proposed technology stack
-
-| Layer | Technology | Purpose |
-|---|---|---|
-| Frontend | React + Vite | Interactive training interface |
-| Styling | CSS variables and CSS | Responsive UI and reusable components |
-| Backend API | Python + FastAPI | Task, media, and verification endpoints |
-| Video processing | OpenCV / FFmpeg | Extract representative frames from demonstrations |
-| AI assistance | Vision-capable model, selected during implementation | Draft task steps and interpret visual evidence |
-| Verification logic | Python rules + image comparison / computer vision | Evaluate clearly defined, observable checkpoints |
-| Initial storage | Local files and SQLite, or a configured database | Store task definitions and prototype results |
-
-The exact model provider and storage choice can be changed. Keep extraction, procedure generation, and verification behind separate service interfaces so the application is not tightly coupled to one AI vendor.
+The only step generator is a deterministic paper-bridge template. Its result is marked simulated, unapproved, and subject to instructor review. It does not inspect demonstrations. Media is stored locally on the API host and is not analyzed.
 
 ## Architecture
 
 ```text
-React + Vite client
-  ├── Task library and task creation
-  ├── Instructor procedure editor
-  ├── Learner guided-practice view
-  └── Checkpoint result and progress summary
-              │ HTTP API
+React + Vite
+  ├── Local practice workspace (browser storage)
+  └── API workspace (credentialed API client)
+              │ /api/v1, HttpOnly cookie
               ▼
-FastAPI backend
-  ├── Task and procedure service
-  ├── Media upload and frame extraction
-  ├── AI-assisted step extraction
-  ├── Checkpoint verification service
-  └── Progress/result storage
-              │
-              ├── Vision model (optional external API)
-              ├── OpenCV / image comparison
-              └── Local or configured database
+Node.js + TypeScript + Express
+  ├── Auth, ownership checks, Zod validation
+  ├── Training, steps, sessions, attempts, reports
+  ├── Local private media adapter
+  └── Prisma ── PostgreSQL
 ```
 
-### Proposed API routes
+The API client is in [src/apiClient.js](src/apiClient.js). The implemented contract is [backend/openapi.yaml](backend/openapi.yaml); backend-specific setup and limitations are in [backend/README.md](backend/README.md).
 
-These routes are a starting design; implement and update this table as the backend evolves.
+## Run locally
 
-| Method | Route | Purpose |
-|---|---|---|
-| `GET` | `/health` | Check that the API is running |
-| `POST` | `/tasks` | Create a task |
-| `POST` | `/tasks/{task_id}/demonstrations` | Upload a demonstration video |
-| `POST` | `/tasks/{task_id}/draft-procedure` | Generate a draft procedure |
-| `PUT` | `/tasks/{task_id}/procedure` | Save an instructor-approved procedure |
-| `POST` | `/tasks/{task_id}/attempts` | Submit checkpoint evidence for evaluation |
-| `GET` | `/tasks/{task_id}/progress` | Retrieve a learner's progress summary |
+Requirements: Node.js 20+, npm, and PostgreSQL 14+ for API-backed features. The browser-only workflow can run without PostgreSQL.
 
-## Getting started
-
-Run the implemented frontend prototype from the repository root. Backend commands below remain a proposal because no backend exists yet.
-
-### Prerequisites
-
-- Node.js 20+ and npm
-- Git
-
-### 1. Clone the repository
-
-```bash
-git clone <your-repository-url>
-cd skillmirror-ai
-```
-
-### Run the frontend
+Install packages from the repository root:
 
 ```bash
 npm install
+```
+
+Create backend configuration from the example and set `DATABASE_URL`. Set `FRONTEND_ORIGIN` to the exact browser origin.
+
+```powershell
+Copy-Item backend/.env.example backend/.env
+```
+
+Generate the client, apply migrations, and start the API:
+
+```bash
+npm run db:generate
+npm run db:migrate
+npm run dev:backend
+```
+
+The API listens on `http://localhost:8000`. `GET /api/v1/health` is liveness; `GET /api/v1/ready` checks PostgreSQL.
+
+In a second terminal, optionally copy `.env.example` to `.env` and set `VITE_API_BASE_URL`; then run:
+
+```bash
 npm run dev
 ```
 
-Open the local URL printed by Vite (typically `http://localhost:5173`). No environment file or API key is required.
+Use the API workspace for server-backed records. The ordinary dashboard remains browser-local.
 
-Run the available checks:
+For fictional development data, set `DEV_SEED_EMAIL` and a unique `DEV_SEED_PASSWORD` of at least 12 characters in the environment, then run `npm run db:seed`. The seed creates no built-in password and must not be used in production.
+
+## Checks
 
 ```bash
 npm test
-npm run build
+npm run build:backend
+npm run build:frontend
 ```
 
-## Suggested project structure
+Backend route tests use Supertest and a mocked Prisma boundary. They do not replace applying the migration and testing against a live PostgreSQL instance.
 
-```text
-skillmirror-ai/
-├── src/
-│   ├── App.jsx
-│   ├── data.js
-│   ├── persistence.js
-│   └── styles.css
-├── index.html
-├── package.json
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── services/
-│   │   ├── schemas/
-│   │   └── main.py
-│   ├── tests/
-│   └── requirements.txt
-├── docs/
-└── README.md
-```
+## API overview
 
-The `backend/` tree remains a proposed future integration boundary and is not present in this prototype.
+All endpoints are under `/api/v1`. Authentication uses a random opaque session token in an HttpOnly cookie; only the token hash is stored. Unsafe browser requests must include the configured Origin. Private project/session endpoints enforce ownership.
 
-## Environment variables
+Implemented route groups include:
 
-The current frontend does not require environment variables. For future API integration, a frontend variable prefixed with `VITE_` is exposed to the browser, so **never put private API keys in frontend environment variables**.
+- `GET /health`, `GET /ready`
+- `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
+- Training list/create/read/update/delete, procedure save, progress, sample generation, and ordered step CRUD/reorder
+- Session create/read/progress/complete, evidence-backed attempts, owner review, and reports
+- Private local media upload/download/delete
 
-Future frontend API base URL example:
+See [backend/openapi.yaml](backend/openapi.yaml) for request and response details.
 
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
+## Security and limitations
 
-Keep AI provider credentials on the backend, for example in `backend/.env`:
+- Passwords are bcrypt-hashed. Registration and login are rate-limited; registration responses do not reveal whether an email already exists.
+- Media uses server-generated keys, an allowlist, content sniffing, and a 250 MiB limit. Local disk is not durable on ephemeral hosts, and malware scanning is not included.
+- Training with session history cannot be edited or deleted; archive it or duplicate it instead.
+- No AI provider, media analyzer, or automated verifier is configured. The API never represents a sample template or file upload as analysis.
+- This prototype is not a safety certification system. Start with low-risk tasks and obtain qualified human review for physical procedures.
+- No database server is bundled. Migration application and live database integration require a PostgreSQL instance and credentials.
 
-```env
-# Example names; implement these in the backend before use.
-AI_PROVIDER_API_KEY=replace-with-your-local-secret
-ALLOWED_ORIGINS=http://localhost:5173
-```
+Do not commit `.env` files, real passwords, private media, or learner records. Vite `VITE_*` values are public client configuration; never put secrets there.
 
-Add `.env` files and uploaded/private media to `.gitignore`. Do not commit real credentials, private videos, or learner records.
+## Development docs
 
-## Three-minute prototype demo
+- [Development guide](docs/DEVELOPMENT.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [API design and implementation notes](docs/API.md)
+- [Testing strategy](docs/TESTING.md)
+- [Deployment checklist](docs/DEPLOYMENT.md)
+- [Roadmap](docs/ROADMAP.md)
 
-1. **Explore:** Open the sample paper-bridge guide and review its materials and steps.
-2. **Practise:** Mark a self-check, request help on another step, and see the retry tip.
-3. **Summarize:** Finish the session and show that the report records self-reported progress only.
-4. **Create:** Add a guide, reorder its sample steps, and publish it locally.
-
-Demonstration videos are only selected locally; no upload or analysis occurs. Do not present this prototype as performing AI inference or image verification.
-
-## Safety, privacy, and reliability
-
-- **Human approval:** Generated procedures must be reviewed before learners rely on them.
-- **No unsupported pass claims:** If the image does not show enough evidence, return `Unable to verify` rather than guessing.
-- **Evidence-linked feedback:** Explain which visible condition led to a result.
-- **Start with low-risk tasks:** Do not use an early prototype to certify electrical, medical, industrial-safety, or other high-risk work.
-- **Privacy by design:** Collect only media needed for the task, obtain consent from people shown in recordings, set deletion rules, and restrict access to uploaded media.
-- **Secure uploads:** Validate file types and sizes, store uploads safely, and avoid exposing media through public URLs by default.
-- **Clear limitations:** A visual match is not proof of overall task quality, hidden structural correctness, or safety.
-- **Fair evaluation:** Test different lighting, camera angles, backgrounds, and user environments; provide an instructor-review path when results are uncertain.
-
-## Roadmap
-
-- [x] Build a root-level React + Vite prototype for local guide authoring, learner practice, and self-reported summaries
-- [ ] Add the FastAPI backend and server-side task/media persistence
-- [ ] Add real demonstration upload and processing
-- [ ] Extract representative frames from videos
-- [ ] Generate an editable draft procedure
-- [ ] Add the instructor approval workflow
-- [ ] Implement one visual checkpoint for a low-risk task
-- [ ] Add pass / retry / unable-to-verify results
-- [ ] Add server-backed learner progress summaries
-- [ ] Add tests for extraction, verification, and failure cases
-- [ ] Validate usability with an instructor and learners
-
-## Success metrics to evaluate
-
-Measure the prototype rather than assuming it works:
-
-- Time needed for an instructor to turn a demonstration into an approved guide
-- Percentage of generated steps that require substantial correction
-- Checkpoint evaluation accuracy on a labelled test set
-- Rate of incorrect passes and unnecessary retries
-- Whether learners can complete the task with less instructor intervention
-- Learner and instructor feedback on clarity and usefulness
-
-For a safety-conscious system, false passes deserve particular attention; report them separately rather than hiding them inside an overall accuracy number.
-
-## Contributing
-
-Contributions are welcome once the initial scaffold is available. Before opening a pull request:
-
-1. Describe the problem the change solves.
-2. Include steps to reproduce and verify it.
-3. Add tests for new extraction or verification behavior.
-4. Never add API secrets, private videos, or real personal data to commits or sample fixtures.
-
-## License
-
-No license is specified yet. Add a `LICENSE` file before distributing or accepting external contributions under an open-source license.
-
----
-
-**SkillMirror AI — learn by doing, improve through feedback.**
+No license has been selected. Add a `LICENSE` file only after choosing the intended license.

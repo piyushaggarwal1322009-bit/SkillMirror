@@ -1,66 +1,35 @@
 # Deployment Guide
 
-## Status
-
-The steps below are a deployment checklist, not a statement that SkillMirror AI is currently deployed or production-ready. Adapt service names, commands, and paths to the actual repository.
+This is a deployment checklist, not a statement that SkillMirror is deployed or production-ready. The current backend is a local development implementation.
 
 ## Deployment shape
 
-A typical setup has:
-
-- A static frontend host for the React/Vite build.
-- A backend host that can run the Python API and media-processing dependencies.
-- Private object storage for videos, images, and extracted frames.
-- A database for tasks, procedure versions, attempts, and evaluations.
-- Server-side secret management for any AI-provider keys.
-
-Do not put provider credentials in frontend variables or public build artifacts.
+- Static host for the Vite frontend.
+- Node.js 20+ host for the Express API.
+- Managed PostgreSQL for Prisma data.
+- Private durable object storage before handling production media.
+- Server-side secret management for database credentials.
 
 ## Frontend
 
-1. Confirm the package manager and build scripts in `frontend/package.json`.
-2. Configure `VITE_API_BASE_URL` to the deployed HTTPS API URL.
-3. Build using the repository's configured script, commonly `npm run build`.
-4. Serve the generated static output from the configured hosting platform.
-5. Verify refresh/deep-link behavior and browser console output.
-
-Vite environment variables are embedded into the client bundle at build time; treat all `VITE_*` values as public.
+1. Set `VITE_API_BASE_URL` to the public HTTPS API base URL. Vite embeds it in the client bundle; it must not contain secrets.
+2. Build with `npm run build:frontend` and serve `dist/`.
+3. Verify SPA refresh/deep-link behavior and the API workspace against the deployed API.
 
 ## Backend
 
-1. Use a supported Python runtime and install pinned dependencies.
-2. Configure the production start command to match the real ASGI application path.
-3. Set secrets through the host's secret manager.
-4. Configure allowed browser origins explicitly.
-5. Set file-size and duration limits, timeouts, and rate limits.
-6. Use durable, private media storage rather than relying on ephemeral local disk.
-7. Add health checks, structured logs, and error monitoring without logging private media or secrets.
+1. Configure `DATABASE_URL`, `PORT`, `NODE_ENV`, `FRONTEND_ORIGIN`, and `MEDIA_STORAGE_DIR` using the host's server-side environment/secret manager. See `backend/.env.example`.
+2. Run `npm run db:generate` and `npm run db:deploy` as a release migration step.
+3. Start with `npm run build:backend` followed by `npm run start:backend`.
+4. Use HTTPS so production cookies can be `Secure`; set `FRONTEND_ORIGIN` to the exact frontend origin.
+5. Monitor `/api/v1/health` for liveness and `/api/v1/ready` for database readiness.
 
-## Required configuration checklist
+## Production gaps
 
-- `VITE_API_BASE_URL`: public HTTPS URL for the API.
-- Backend AI provider key: server-side secret only, if genuine model inference is enabled.
-- Allowed frontend origins: explicit list of deployed domains.
-- Database URL and credentials: server-side secrets.
-- Media storage credentials: server-side secrets with least-privilege access.
-- Retention/deletion configuration: documented and tested.
+- Local media storage is not durable on ephemeral hosts, has no malware scanner, and has no retention/deletion scheduler. Implement a private object-storage adapter and cleanup policy before accepting production uploads.
+- Registration and login have in-process rate limits; production should use shared rate limiting behind the trusted proxy and abuse monitoring.
+- No external AI or computer-vision integration is configured. The sample generator is deterministic and labelled.
+- Add database backups, restore drills, TLS, metrics, alerting, and operational incident procedures.
+- Review privacy/consent, retention, account deletion, and safety requirements with qualified stakeholders.
 
-Use actual variable names implemented by the repository; the names above are illustrative.
-
-## Pre-launch checklist
-
-- [ ] Frontend and backend origins use HTTPS.
-- [ ] CORS is restricted to expected origins.
-- [ ] Auth and per-resource authorization are implemented and tested.
-- [ ] Upload validation and resource limits are enabled.
-- [ ] Media is private by default.
-- [ ] Deletion covers original uploads and derived artifacts.
-- [ ] No secrets are in Git or frontend build output.
-- [ ] Database backups and recovery expectations are documented.
-- [ ] Logging and monitoring avoid personal data.
-- [ ] AI failures and `unable_to_verify` outcomes have understandable UI states.
-- [ ] The interface clearly states that results are not safety certification.
-
-## Rollback
-
-Keep a previous known-good release or commit. If a new release causes erroneous evaluations, data exposure, or upload failures, disable the affected feature or roll back rather than continuing to show potentially misleading outcomes.
+Do not describe local execution as deployment or human review as AI verification.

@@ -1,72 +1,44 @@
-# Testing Strategy
+# Testing
 
-## Objectives
+## Commands
 
-Testing should demonstrate that SkillMirror guides a learner accurately within the scope of a known task, preserves instructor review, protects private media, and declines to make unsupported visual claims.
+Run from the repository root:
 
-## Test layers
+```bash
+npm run test:frontend
+npm run test:backend
+npm run build:backend
+npm run build:frontend
+```
 
-### 1. Unit tests
+`npm test` runs both frontend and backend tests.
 
-Cover:
+## Current automated coverage
 
-- Task/procedure/checkpoint schema validation.
-- Procedure step ordering and version changes.
-- Status transitions, including processing failures.
-- Checkpoint threshold/rule logic.
-- Mapping of low-quality or missing evidence to `unable_to_verify`.
-- Redaction and safe error formatting.
+Frontend Node tests cover local-storage recovery and the credentialed API client: success envelopes, validation errors, network failures, no-content responses, URL-encoded IDs, and multipart uploads.
 
-### 2. API tests
+Backend Vitest/Supertest tests cover liveness, auth cookie/registration behavior, invalid Origin and credentials, validation envelopes, authenticated project creation, owner isolation, evidence-free `UNABLE_TO_VERIFY`, and blocking completion without a human-reviewed pass. Service tests cover the sample-only step generator, exact step-order validation, report calculation, and local storage-key traversal protection.
 
-Cover:
+Backend HTTP tests use a mocked Prisma boundary. They do not prove real SQL queries, migrations, transaction behavior, database authorization, or concurrent updates.
 
-- Valid and invalid task creation.
-- Supported and unsupported file types.
-- Oversized video/image rejection.
-- Unauthorized requests to read, change, or delete another user's task/media.
-- Instructor approval required before a procedure becomes usable.
-- Submission behavior for each evaluation status.
-- Deletion of originals and derived files.
+## Database integration gate
 
-### 3. Computer-vision evaluation
+With PostgreSQL configured:
 
-Create a small, consented test set with documented expected outcomes. Include:
+1. Run `npm run db:generate`.
+2. Apply `npm run db:migrate` against a disposable development database.
+3. Run `npm run db:seed` with explicit development credentials.
+4. Exercise `/api/v1/health` and `/api/v1/ready`, then test create/publish/session/upload/review/report with an authenticated user.
+5. Verify rollback, migration repeatability, and User A/User B access boundaries against the real database.
 
-- Correct examples under different lighting and backgrounds.
-- Incorrect examples showing the target mismatch.
-- Blurry, occluded, cropped, and out-of-angle examples.
-- Objects that resemble the target but should not pass.
-- Empty or malformed inputs.
+The current workspace has no PostgreSQL server or Docker, so these database integration checks have not been run.
 
-Report per-class metrics where relevant, false-pass and false-fail counts, and known limitations. Do not tune and evaluate only on the exact same images.
+## Media and assessment
 
-### 4. End-to-end tests
+Add isolated tests for MIME mismatch, size limit, interrupted writes, unauthorized upload before body acceptance, and unauthorized media downloads. Current service tests cover key generation and traversal rejection only.
 
-At minimum, verify this workflow:
+No automated verifier exists, so there is no computer-vision evaluation dataset or accuracy claim. Evidence-backed attempts require human review; evidence-free attempts cannot pass.
 
-1. Create task.
-2. Upload a demonstration.
-3. Generate a draft procedure.
-4. Edit and approve a version.
-5. Open guided practice.
-6. Submit evidence.
-7. Display result and progress.
+## Browser and accessibility
 
-Also verify a failed upload, a model/API outage, and an unclear checkpoint image.
-
-### 5. Accessibility and responsive tests
-
-- Keyboard-only navigation of instructor and learner flows.
-- Visible focus indicators and accessible labels.
-- Meaningful status announcements for screen readers.
-- Usable layout on small mobile screens.
-- Do not convey evaluation status through color alone.
-
-## Demo fixture policy
-
-Use synthetic or staged media with permission. Keep fixture metadata explicit about whether expected outcomes are actual, manually labeled, or simulated. Never use private workplace recordings without authorization.
-
-## Recommended release gate
-
-Do not present an evaluation feature as implemented until tests cover passing, failing, and insufficient-evidence cases. For the initial MVP, use low-risk tasks and require instructor approval of task criteria. A successful test suite does not certify that the product is suitable for safety-critical work.
+The frontend was manually exercised at 320, 390, 768, and 1280 px. Before release, add automated browser tests for account flows, API outages, keyboard-only navigation, reduced motion, screen-reader announcements, and the full live-PostgreSQL vertical slice.

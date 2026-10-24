@@ -1,6 +1,6 @@
 # Roadmap
 
-This roadmap is a proposal, not a claim that listed features are already implemented. Prioritize a reliable end-to-end workflow over a large number of partially working AI features.
+This roadmap distinguishes the implemented local prototype and API from future production/AI work. Prioritize reliable workflow and reviewed evidence over partially working automation.
 
 ## Phase 0 — Scope and fixtures
 
@@ -14,17 +14,19 @@ This roadmap is a proposal, not a claim that listed features are already impleme
 ## Phase 1 — Functional MVP
 
 - [x] Local frontend prototype for task library, guide creation, and editing.
-- [ ] Server-backed task library and task creation.
-- [ ] Demonstration upload with progress/error states.
-- [ ] Instructor-editable procedure drafts.
-- [ ] Procedure versioning and approval.
+- [x] Server-backed training CRUD, step editing/reorder, and owner/published access rules.
+- [x] Validated local demonstration/evidence upload endpoints.
+- [x] Instructor-editable procedure drafts and owner-controlled publishing.
+- [ ] Versioned procedure approvals and audit history.
 - [x] Learner guided-practice view with local self-checks.
-- [ ] One checkpoint evaluator for the selected task.
-- [ ] `pass`, `retry`, and `unable_to_verify` outcomes.
+- [ ] Automated checkpoint evaluator for the selected task.
+- [x] Human-reviewed `PASSED`, `NEEDS_IMPROVEMENT`, and `UNABLE_TO_VERIFY` outcomes.
 - [x] Local practice summary and browser-storage tests.
-- [ ] Backend persistence and evaluation tests.
+- [x] Prisma schema, initial PostgreSQL migration, and backend service/API tests.
+- [ ] Apply migration and run integration tests against PostgreSQL.
+- [x] API-backed sessions, evidence attempts, human review, and derived reports.
 
-**Exit criteria:** A single task can be completed end to end without pretending simulated output is real inference.
+**Exit criteria:** A single task can be completed with human-reviewed attempts; simulated template output is never presented as real inference.
 
 ## Phase 2 — Reliable feedback
 

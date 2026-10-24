@@ -1,35 +1,19 @@
-# Documentation bundle inventory
+# Documentation Index
 
-Copy these files/folders into the root of your SkillMirror AI repository, preserving paths. The root-level `README.md` is included for convenience and matches the supplied README at the time of bundle creation.
+- [README.md](README.md) — product status, local setup, and limitations
+- [Backend setup](backend/README.md) — environment, migrations, seed, tests, and backend limitations
+- [OpenAPI contract](backend/openapi.yaml) — implemented `/api/v1` endpoints
+- [Architecture](docs/ARCHITECTURE.md) — data model, authorization, and service boundaries
+- [API notes](docs/API.md) — authentication, response, upload, and assessment semantics
+- [Development guide](docs/DEVELOPMENT.md) — commands and local workflow
+- [Testing strategy](docs/TESTING.md) — backend/frontend test scope and remaining integration gates
+- [Deployment checklist](docs/DEPLOYMENT.md) — current deployment prerequisites and production gaps
+- [Roadmap](docs/ROADMAP.md) — completed prototype work and future capabilities
 
-## Root files
+## Remaining
 
-- `README.md` — project overview and getting started
-- `CONTRIBUTING.md` — contribution workflow and checklist
-- `CODE_OF_CONDUCT.md` — community expectations
-- `SECURITY.md` — vulnerability reporting and security priorities
-- `SUPPORT.md` — getting help
-- `CHANGELOG.md` — initial change log
-- `PRIVACY.md` — proposed data-handling principles
-
-## `docs/`
-
-- `ARCHITECTURE.md` — components and domain model
-- `API.md` — proposed endpoints and request/response conventions
-- `DEVELOPMENT.md` — local development workflow
-- `TESTING.md` — test plan and release gates
-- `DEPLOYMENT.md` — deployment checklist
-- `ROADMAP.md` — proposed phases and exit criteria
-- `DECISIONS.md` — architecture decision log
-
-## `.github/`
-
-- `ISSUE_TEMPLATE/bug_report.md` — bug report template
-- `ISSUE_TEMPLATE/feature_request.md` — feature request template
-- `PULL_REQUEST_TEMPLATE.md` — pull request checklist
-
-## Still to decide
-
-- Add a repository `LICENSE` file only after choosing the license you intend to grant. A license choice has legal implications, so this bundle does not assume one.
-- Add CI workflows and exact test commands after checking the actual frontend/backend scripts and repository structure.
-- Replace any proposed route names, environment variables, and file paths that differ from the implementation.
+- Add CI for frontend, backend, and Prisma schema checks.
+- Apply migrations and run integration tests against a real PostgreSQL database.
+- Add private durable object storage and malware scanning before production uploads.
+- Add real AI/verification providers only with validated schemas, provenance, and evaluated datasets.
+- Choose a project license before external distribution.

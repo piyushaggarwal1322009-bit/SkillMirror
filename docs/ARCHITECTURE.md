@@ -1,99 +1,58 @@
 # Architecture
 
-## Status and design goals
-
-This document describes a proposed architecture for SkillMirror AI. Confirm all paths, services, and APIs against the actual implementation before treating them as available.
-
-Design goals:
-
-1. Separate video processing, procedure generation, and checkpoint verification.
-2. Keep instructor approval in the workflow before generated procedures are used.
-3. Make every automated assessment traceable to evidence and a versioned criterion.
-4. Return `unable_to_verify` when evidence is insufficient.
-5. Keep AI providers replaceable behind small interfaces.
-6. Minimize exposure and retention of uploaded media.
-
-## High-level components
+## Current implementation
 
 ```text
-Browser client (React + Vite)
-  ├── Task library / task creation
-  ├── Instructor procedure editor
-  ├── Learner guided-practice flow
-  └── Results and progress view
-            │ HTTPS / JSON
-            ▼
-API service (proposed FastAPI)
-  ├── Task and procedure API
-  ├── Upload validation and media storage
-  ├── Video frame extraction (OpenCV / FFmpeg)
-  ├── AI-assisted procedure draft service
-  ├── Checkpoint evaluation service
-  └── Progress and audit records
-            ├── Structured database
-            ├── Private media storage
-            └── Optional vision-model provider
+React + Vite
+  ├── Browser-local practice workspace
+  └── API workspace and shared credentialed client
+             │ /api/v1 + HttpOnly cookie
+             ▼
+Express + TypeScript
+  ├── Auth, request validation, and owner checks
+  ├── Training, ordered steps, sessions, attempts, reports
+  ├── Local media storage abstraction
+  └── Prisma ── PostgreSQL
 ```
 
-## Main domain objects
+The schema is in `backend/prisma/schema.prisma`; implemented API contracts are in `backend/openapi.yaml`.
 
-- **Task:** title, description, intended outcome, risk category, owner, and status.
-- **Demonstration:** media reference, consent metadata, upload timestamp, processing status, and derived frame references.
-- **ProcedureVersion:** ordered steps, tools/materials, checkpoints, model provenance, instructor edits, and approval status.
-- **Checkpoint:** observable criterion, reference media/rule, evaluation mode, and instructions for collecting evidence.
-- **Attempt:** learner/session identifier, procedure version, submitted evidence reference, and timestamp.
-- **Evaluation:** outcome (`pass`, `retry`, or `unable_to_verify`), evidence references, rule/model version, explanation, and review status.
-- **ProgressSummary:** step completion and retry counts; avoid unnecessary personal details.
+## Data model
 
-Use stable IDs and version procedures. A learner's result should point to the exact approved procedure version used for that attempt.
+- `User` owns training projects, media, and learner sessions.
+- `AuthSession` stores a hash of a random opaque cookie token and its expiry.
+- `TrainingProject` stores title, description, category, level, duration, objectives, materials, status, and optional demonstration metadata.
+- `TrainingStep` stores ordered instructions, expected result, self-check, safety note, optional image URL, and retry tip. `(projectId, position)` is unique.
+- `MediaAsset` stores a server-generated key and validated metadata; bytes are outside PostgreSQL.
+- `TrainingSession` links learner and project with current position/status.
+- `StepAttempt` stores evidence links, verification status, feedback, method, simulation provenance, and attempt number.
+- `AssessmentReport` is recalculated from persisted attempt records; it does not invent evidence or scores.
 
-## Checkpoint evaluation contract
+## Authorization
 
-The verification service should return a structured result similar to:
+- Users can access their own drafts and projects. Signed-in users can read published guides.
+- Only the project owner can edit, publish, archive, delete, or review attempts.
+- Sessions are visible to their learner and the project owner. Learner writes require session ownership.
+- Evidence is visible to its uploader, the project owner, or the owning learner. Published reference assets may be read by signed-in users; learner attempt evidence remains private.
+- Mutating browser requests require an exact configured Origin.
 
-```json
-{
-  "status": "unable_to_verify",
-  "reason_code": "insufficient_visual_evidence",
-  "explanation": "The component and its reference markers are not fully visible.",
-  "evidence": [],
-  "requires_human_review": true
-}
-```
+## Attempt state and reports
 
-Allowed statuses for the MVP:
+An evidence-backed submission enters `NEEDS_REVIEW`; a submission without evidence enters `UNABLE_TO_VERIFY`. Only the owner review endpoint can transition a pending attempt to `PASSED`, `NEEDS_IMPROVEMENT`, or `UNABLE_TO_VERIFY`. Session completion requires a latest `PASSED` attempt for every current step. Reports derive percentages from those reviewed records.
 
-- `pass`: evidence meets the approved, observable criterion.
-- `retry`: evidence shows a specific mismatch that the criterion can detect.
-- `unable_to_verify`: image quality, viewpoint, ambiguity, or model uncertainty prevents a reliable decision.
+No endpoint performs computer vision. The sample generator returns a deterministic paper-bridge template marked `simulated: true`, `provenance: demo-template`, and `humanReviewRequired: true`; it does not inspect uploads.
 
-Do not treat confidence alone as proof of correctness. Criteria and thresholds should be tested on representative examples. High-risk tasks need to remain out of scope.
+## Media
 
-## AI service boundaries
+Uploads use a MIME allowlist, 250 MiB limit, detected-content check, random UUID storage key, and private local filesystem path. Authorization runs before receiving the upload. Files are not served from a public directory. Local storage lacks malware scanning and is unsuitable for ephemeral production hosts; use a private durable object-store adapter before deployment.
 
-- Procedure generation produces a **draft**, never an approved procedure.
-- Instructor edits and approval are recorded separately from model output.
-- Checkpoint evaluation receives only the specific approved criterion and evidence needed for that check.
-- Treat video/audio/text within uploads as untrusted content; it cannot alter application instructions, access permissions, or evaluation rules.
-- Store model/provider name, version when available, prompt/config version, and relevant evaluation metadata for debugging.
+## Transactional rules
 
-## Failure handling
+- Reordering validates an exact set of step IDs, moves positions to a temporary non-overlapping range, then assigns final positions in one serializable transaction.
+- Deleting a step compacts positions using the same temporary-range approach.
+- Replacing a procedure is atomic and blocked once sessions exist.
+- Evidence attachment and attempt creation share a serializable transaction.
 
-- Upload/decoding failure: explain the accepted formats and allow retry.
-- AI provider unavailable: preserve the uploaded task and show a retryable processing state.
-- Unsupported task or checkpoint: ask for instructor review instead of fabricating a result.
-- Low-quality evidence: request another view or return `unable_to_verify`.
-- Database/storage failure: do not report success until the operation is durably saved.
+## Planned integration boundaries
 
-## Proposed repository boundaries
-
-```text
-frontend/src/
-  components/  pages/  services/  types/
-backend/app/
-  api/  core/  models/  schemas/  services/
-backend/tests/
-docs/
-```
-
-These are suggestions, not a confirmed snapshot of the repository.
+The sample step generator implements a small `StepGenerator` interface. Add genuine model providers separately, validate structured output, preserve provenance, and require human review. Add a distinct verification provider only after a tested dataset and explicit criteria exist. Do not conflate generation with verification.

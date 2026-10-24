@@ -3,8 +3,9 @@ import {
   ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BadgeCheck, BookOpen, Check, CheckCircle2,
   ChevronDown, CircleHelp, Clock3, Copy, FileVideo2, FlaskConical, FolderOpen, Gauge,
   ImagePlus, Layers3, ListChecks, Menu, MoreHorizontal, Play, Plus, RotateCcw, Save,
-  Search, Settings2, ShieldCheck, Sparkles, Trash2, Upload, X,
+  Search, Server, Settings2, ShieldCheck, Sparkles, Trash2, Upload, X,
 } from 'lucide-react';
+import ApiWorkspace from './ApiWorkspace.jsx';
 import { createBlankTraining, createId, createSampleSteps, EXAMPLE_ID, EXAMPLE_TRAINING } from './data.js';
 import { readStore, writeStore } from './persistence.js';
 
@@ -12,6 +13,7 @@ const NAV_ITEMS = [
   { path: '/dashboard', label: 'Overview', icon: Gauge },
   { path: '/library', label: 'My training', icon: Layers3 },
   { path: '/progress', label: 'Progress', icon: ListChecks },
+  { path: '/api', label: 'API workspace', icon: Server },
 ];
 
 function routeFromHash() {
@@ -100,6 +102,7 @@ function App() {
     }
     if (route.view === 'library') return <Library projects={store.projects} />;
     if (route.view === 'progress') return <Progress projects={store.projects} sessions={store.sessions} />;
+    if (route.view === 'api') return <ApiWorkspace />;
     return <Dashboard projects={store.projects} sessions={store.sessions} />;
   };
 
@@ -143,7 +146,7 @@ function App() {
             {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div className="breadcrumb"><span>Workspace</span><span className="breadcrumb-slash">/</span><strong>{NAV_ITEMS.find((item) => item.path === `/${route.view}`)?.label ?? (route.view === 'create' ? 'Create training' : 'Training details')}</strong></div>
-          <div className="topbar-actions"><button className="top-search" aria-label="Search training" onClick={() => navigate('/library')}><Search size={17} /><span>Find training</span><kbd>/</kbd></button><Button icon={Plus} onClick={() => navigate('/create')}>Create training</Button></div>
+          <div className="topbar-actions"><button className="top-search" aria-label="Search training" onClick={() => navigate('/library')}><Search size={17} /><span>Find training</span><kbd>/</kbd></button>{route.view !== 'api' && <Button icon={Plus} onClick={() => navigate('/create')}>Create training</Button>}</div>
         </header>
         <main className="content-area">
           {recoveredData && <div className="notice notice-warning" role="status"><CircleHelp size={17} /><span>Saved browser data could not be read. A fresh workspace is ready; older data was left untouched.</span><button aria-label="Dismiss" onClick={() => setRecoveredData(false)}><X size={16} /></button></div>}

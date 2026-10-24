@@ -1,112 +1,33 @@
-# API Design (Proposed)
+# API
 
-> This is a design document for the MVP. Routes and schemas are not guaranteed to exist until implemented and tested in the repository.
+The implemented REST API is versioned under `/api/v1`. The canonical endpoint, request, response, and status-code contract is [`backend/openapi.yaml`](../backend/openapi.yaml). Do not rely on the former task-oriented route proposal; those routes were not implemented.
 
 ## Conventions
 
-- Base URL for local development: `http://localhost:8000`.
-- Use JSON for metadata and multipart form data for media uploads.
-- Validate every request on the server.
-- Enforce authentication/authorization before exposing private tasks, submissions, or media.
-- Use stable error codes and do not return raw stack traces or secrets.
-- Set explicit upload size and media-duration limits.
+- JSON responses use `{ success, data, error }`.
+- Errors include a stable code/message and validation details where applicable. Stack traces, SQL errors, secrets, and filesystem paths are not returned.
+- Protected endpoints use the `skillmirror_session` HttpOnly cookie. The database stores only a SHA-256 token hash; logout invalidates it.
+- Mutating browser requests require an exact configured `Origin`; CORS credentials are restricted to `FRONTEND_ORIGIN`.
+- Training statuses returned to the frontend are `draft`, `published`, and `archived`.
 
-## Endpoints
+## Endpoint groups
 
-| Method | Route | Purpose |
-|---|---|---|
-| `GET` | `/health` | Liveness check; no private data |
-| `POST` | `/tasks` | Create a task draft |
-| `GET` | `/tasks` | List tasks visible to the caller |
-| `GET` | `/tasks/{task_id}` | Fetch task metadata and status |
-| `POST` | `/tasks/{task_id}/demonstrations` | Upload a demonstration video |
-| `GET` | `/tasks/{task_id}/processing-status` | Poll media processing status |
-| `POST` | `/tasks/{task_id}/draft-procedure` | Generate a draft from processed media |
-| `PUT` | `/tasks/{task_id}/procedure` | Save an instructor-reviewed procedure version |
-| `POST` | `/tasks/{task_id}/attempts` | Submit checkpoint evidence |
-| `GET` | `/tasks/{task_id}/progress` | Get a progress summary visible to the caller |
-| `DELETE` | `/tasks/{task_id}/media/{media_id}` | Request deletion of a media item and its derivatives |
+- Health: `GET /health`, `GET /ready`
+- Auth: `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`
+- Training: list/create/read/update/delete, `PUT /trainings/{id}/procedure`, `GET /trainings/{id}/progress`, sample step generation, and step CRUD/reorder
+- Learning: session create/read/progress/complete, attempts, owner review, and reports
+- Media: training/session multipart upload and authorized private asset read/delete
 
-Only expose routes that are actually implemented. Consider pagination for list endpoints and idempotency for uploads or expensive generation requests.
+## Assessment semantics
 
-## Suggested status enums
+- Evidence submission is not verification. With evidence, an attempt is `NEEDS_REVIEW`; without evidence, it is `UNABLE_TO_VERIFY`.
+- Only the guide owner can review an attempt awaiting review. Review values are `PASSED`, `NEEDS_IMPROVEMENT`, and `UNABLE_TO_VERIFY`.
+- Completion requires the latest attempt for every step to be `PASSED`.
+- Reports count persisted latest attempts; no arbitrary score or AI-generated pass is returned.
+- `POST /trainings/{id}/generate-steps` accepts only `{ "mode": "demo" }` and only the paper-bridge template. It returns explicit `simulated`, `provenance`, `humanReviewRequired`, and `approved: false` fields.
 
-### Task status
+## Upload contract
 
-`draft`, `processing`, `needs_review`, `approved`, `archived`, `failed`
+Multipart field `file` accepts JPEG, PNG, WebP, MP4, MOV, and WebM up to 250 MiB. The server checks detected file content against the allowlist and creates a UUID storage key. Attempt evidence requires a `stepId`; a returned media asset ID can then be submitted in the attempt's `evidenceIds`. Files stay on private local disk in this development adapter; no cloud storage or malware scanner is configured.
 
-### Evaluation status
-
-`pass`, `retry`, `unable_to_verify`, `pending_review`
-
-Do not use `pass` as a general claim that the complete physical task is safe. It means only that a specific approved checkpoint met its defined observable criteria.
-
-## Example: create a task
-
-Request:
-
-```http
-POST /tasks
-Content-Type: application/json
-```
-
-```json
-{
-  "title": "Assemble a simple model",
-  "description": "Practice the approved assembly sequence",
-  "risk_category": "low"
-}
-```
-
-Possible response:
-
-```json
-{
-  "id": "task_example_id",
-  "title": "Assemble a simple model",
-  "status": "draft"
-}
-```
-
-Example IDs and payloads are illustrative; adapt them to implemented schemas.
-
-## Example: submit a checkpoint
-
-A multipart request could include `checkpoint_id` and an image file. The API should respond with an evaluation object, for example:
-
-```json
-{
-  "status": "retry",
-  "reason_code": "visible_alignment_mismatch",
-  "explanation": "The component appears outside the approved outline.",
-  "requires_human_review": false
-}
-```
-
-The backend must only emit this result when the configured rule/model and evidence support it. If evidence is insufficient, return `unable_to_verify`.
-
-## Error format
-
-Recommended error response:
-
-```json
-{
-  "error": {
-    "code": "unsupported_media_type",
-    "message": "Upload a supported video or image format."
-  }
-}
-```
-
-Avoid including filesystem paths, provider responses, prompts, credentials, or private data in error messages.
-
-## API checklist before production
-
-- Authentication and task-level authorization.
-- Request schema validation and consistent status codes.
-- Upload limits, file-type checks, safe storage, and malware scanning where appropriate.
-- Rate limits for uploads and AI calls.
-- CORS allowlist and HTTPS.
-- Audit trail for instructor approvals and changes to procedures.
-- Deletion route that also covers extracted frames and derived files.
-- Tests for unauthorized access and insufficient-evidence responses.
+For field limits, exact JSON schemas, and status codes, use the OpenAPI document rather than duplicating route assumptions in clients.
