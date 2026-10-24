@@ -13,14 +13,16 @@ This roadmap is a proposal, not a claim that listed features are already impleme
 
 ## Phase 1 — Functional MVP
 
-- [ ] Task library and task creation.
+- [x] Local frontend prototype for task library, guide creation, and editing.
+- [ ] Server-backed task library and task creation.
 - [ ] Demonstration upload with progress/error states.
 - [ ] Instructor-editable procedure drafts.
 - [ ] Procedure versioning and approval.
-- [ ] Learner guided-practice view.
+- [x] Learner guided-practice view with local self-checks.
 - [ ] One checkpoint evaluator for the selected task.
 - [ ] `pass`, `retry`, and `unable_to_verify` outcomes.
-- [ ] Progress summary and basic tests.
+- [x] Local practice summary and browser-storage tests.
+- [ ] Backend persistence and evaluation tests.
 
 **Exit criteria:** A single task can be completed end to end without pretending simulated output is real inference.
 

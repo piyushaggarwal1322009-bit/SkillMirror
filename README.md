@@ -4,7 +4,7 @@
 
 SkillMirror AI is a proposed AI-assisted practical-training platform. An instructor records a task, the system helps turn the recording into an editable step-by-step guide, and learners practise the task with visual checkpoints. Where the camera provides enough evidence, computer vision can flag a possible mistake or confirm that an observable step appears complete.
 
-> **Project status:** Hackathon concept / prototype in development. Features described as planned or proposed are not necessarily implemented yet. Any simulated inspection results in a demo must be labelled as simulated.
+> **Project status:** The repository includes a working React + Vite frontend prototype. It supports local guide authoring and self-reported practice. There is no backend, AI inference, remote media upload, or automated verification yet.
 
 ## The problem
 
@@ -24,6 +24,16 @@ SkillMirror AI connects four stages in one workflow:
 The generated procedure remains editable and should be reviewed by a qualified instructor before it is used for training.
 
 ## Core features
+
+### Current frontend prototype
+
+- Create, edit, reorder, and locally publish training guides.
+- Add a sample outline or write steps with expected results, self-checks, safety notes, retry tips, and reference image URLs.
+- Select a demonstration video locally by browsing or drag-and-drop. The file is not uploaded or analysed.
+- Practise a sample or saved guide, record self-checks, request help, retry steps, and view a practice summary.
+- Persist guides and practice records in browser `localStorage`; sample content remains separate from user-created guides.
+
+Checkpoint results are self-reported. The progress percentage counts steps marked complete; it is not a measure of skill mastery. Browser storage is local to this device and browser.
 
 ### MVP priorities
 
@@ -82,7 +92,7 @@ flowchart TD
 | Layer | Technology | Purpose |
 |---|---|---|
 | Frontend | React + Vite | Interactive training interface |
-| Styling | Tailwind CSS | Responsive UI and reusable components |
+| Styling | CSS variables and CSS | Responsive UI and reusable components |
 | Backend API | Python + FastAPI | Task, media, and verification endpoints |
 | Video processing | OpenCV / FFmpeg | Extract representative frames from demonstrations |
 | AI assistance | Vision-capable model, selected during implementation | Draft task steps and interpret visual evidence |
@@ -129,14 +139,12 @@ These routes are a starting design; implement and update this table as the backe
 
 ## Getting started
 
-The commands below describe the intended development setup. They assume the frontend and backend scaffolds have been created; adjust file paths to match the actual repository.
+Run the implemented frontend prototype from the repository root. Backend commands below remain a proposal because no backend exists yet.
 
 ### Prerequisites
 
-- Node.js and npm
-- Python 3.10 or newer
+- Node.js 20+ and npm
 - Git
-- An API key only if your chosen AI provider requires one
 
 ### 1. Clone the repository
 
@@ -145,67 +153,33 @@ git clone <your-repository-url>
 cd skillmirror-ai
 ```
 
-### 2. Start the backend
+### Run the frontend
 
 ```bash
-cd backend
-python -m venv .venv
-```
-
-Activate the environment:
-
-```bash
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-
-# macOS / Linux
-source .venv/bin/activate
-```
-
-Install dependencies and run the API:
-
-```bash
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-If the entry point differs in your repository, replace `app.main:app` with the actual FastAPI application path.
-
-### 3. Start the frontend
-
-In a second terminal:
-
-```bash
-cd frontend
 npm install
-```
-
-Create `frontend/.env`:
-
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-Start Vite:
-
-```bash
 npm run dev
 ```
 
-Open the local URL printed by Vite (typically `http://localhost:5173`). Ensure the backend's CORS configuration allows the frontend origin.
+Open the local URL printed by Vite (typically `http://localhost:5173`). No environment file or API key is required.
+
+Run the available checks:
+
+```bash
+npm test
+npm run build
+```
 
 ## Suggested project structure
 
 ```text
 skillmirror-ai/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── App.jsx
-│   ├── .env.example
-│   └── package.json
+├── src/
+│   ├── App.jsx
+│   ├── data.js
+│   ├── persistence.js
+│   └── styles.css
+├── index.html
+├── package.json
 ├── backend/
 │   ├── app/
 │   │   ├── api/
@@ -218,13 +192,13 @@ skillmirror-ai/
 └── README.md
 ```
 
-This is a suggested structure, not a claim about the repository's current files.
+The `backend/` tree remains a proposed future integration boundary and is not present in this prototype.
 
 ## Environment variables
 
-Keep secrets out of source control. A frontend variable prefixed with `VITE_` is exposed to the browser, so **never put private API keys in frontend environment variables**.
+The current frontend does not require environment variables. For future API integration, a frontend variable prefixed with `VITE_` is exposed to the browser, so **never put private API keys in frontend environment variables**.
 
-Example frontend `.env.example`:
+Future frontend API base URL example:
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
@@ -240,16 +214,14 @@ ALLOWED_ORIGINS=http://localhost:5173
 
 Add `.env` files and uploaded/private media to `.gitignore`. Do not commit real credentials, private videos, or learner records.
 
-## Three-minute hackathon demo
+## Three-minute prototype demo
 
-1. **Show the task:** Introduce a simple assembly or workshop task and its expected result.
-2. **Create the guide:** Upload an expert demonstration and show the generated procedure draft.
-3. **Review:** Edit and approve the steps, emphasizing that generated instructions require human review.
-4. **Attempt:** Submit a correct and an intentionally incorrect checkpoint image.
-5. **Verify:** Show the result, evidence-based feedback, or an `Unable to verify` outcome when the image is unclear.
-6. **Summarize:** Show the learner's completed steps and retries.
+1. **Explore:** Open the sample paper-bridge guide and review its materials and steps.
+2. **Practise:** Mark a self-check, request help on another step, and see the retry tip.
+3. **Summarize:** Finish the session and show that the report records self-reported progress only.
+4. **Create:** Add a guide, reorder its sample steps, and publish it locally.
 
-Use a pre-recorded video and prepared test images to make the demo reliable. If any feature is mocked, label it clearly and distinguish the mock from real model inference.
+Demonstration videos are only selected locally; no upload or analysis occurs. Do not present this prototype as performing AI inference or image verification.
 
 ## Safety, privacy, and reliability
 
@@ -264,14 +236,15 @@ Use a pre-recorded video and prepared test images to make the demo reliable. If 
 
 ## Roadmap
 
-- [ ] Scaffold the React frontend and FastAPI backend
-- [ ] Build task creation and demonstration upload
+- [x] Build a root-level React + Vite prototype for local guide authoring, learner practice, and self-reported summaries
+- [ ] Add the FastAPI backend and server-side task/media persistence
+- [ ] Add real demonstration upload and processing
 - [ ] Extract representative frames from videos
 - [ ] Generate an editable draft procedure
 - [ ] Add the instructor approval workflow
 - [ ] Implement one visual checkpoint for a low-risk task
 - [ ] Add pass / retry / unable-to-verify results
-- [ ] Create learner progress summaries
+- [ ] Add server-backed learner progress summaries
 - [ ] Add tests for extraction, verification, and failure cases
 - [ ] Validate usability with an instructor and learners
 

@@ -2,67 +2,25 @@
 
 ## Status
 
-This guide describes the intended development layout from the README. Confirm the real repository folders and package scripts before running commands. Do not create empty features solely to match this document.
+The repository currently contains a root-level React + Vite frontend prototype. The backend instructions below are future integration guidance only; no backend is implemented.
 
 ## Prerequisites
 
 - Git
-- Node.js and npm (use the version supported by the frontend's `package.json`)
-- Python 3.10+ (use the version pinned by the backend if one exists)
-- Optional AI provider credentials for genuine model inference
+- Node.js 20+ and npm
 
-## Suggested local setup
-
-### Backend
-
-From the repository root:
+## Frontend setup
 
 ```bash
-cd backend
-python -m venv .venv
-```
-
-Activate the environment:
-
-```powershell
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
-```
-
-```bash
-# macOS / Linux
-source .venv/bin/activate
-```
-
-Then, if `backend/requirements.txt` and `backend/app/main.py` exist:
-
-```bash
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-If those files or the import path differ, use the actual project configuration.
-
-### Frontend
-
-Open a second terminal:
-
-```bash
-cd frontend
 npm install
-```
-
-Set `VITE_API_BASE_URL` in the frontend environment file, for example:
-
-```env
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-Start the frontend using the script configured in `package.json`, commonly:
-
-```bash
 npm run dev
 ```
+
+Run automated checks with `npm test` and `npm run build`. The frontend has no required environment variables. User guides and practice records are stored in browser `localStorage`.
+
+## Future backend setup
+
+When a backend is added, document its real entry point, dependencies, and environment variables here. Never place private AI-provider credentials in frontend `VITE_` variables.
 
 ## Environment variables
 
