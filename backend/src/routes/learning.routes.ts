@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { requireAuth, type AuthUser } from '../auth.js';
 import { assertFound, HttpError } from '../errors.js';
 import { reviewAttemptSchema, routeIdSchema, sessionProgressSchema, sessionRouteSchema, submitAttemptSchema } from '../schemas.js';
-import { findReadableTraining, findSessionAccess, findOwnedTraining } from '../services/access.js';
+import { findReadableTraining, findSessionAccess, findOwnedTraining, findWorkerProfile, requireOwnerOrganization } from '../services/access.js';
 import { sendData } from '../utils/response.js';
 
 type StepForReport = { id: string; title: string; position: number; attempts: Array<{ id: string; attemptNumber: number; verificationStatus: string; feedback: string; submittedAt: Date; simulated: boolean }> };
@@ -74,6 +74,32 @@ async function persistReport(prisma: PrismaClient, sessionId: string) {
 export function createLearningRouter(prisma: PrismaClient): Router {
   const router = Router();
   router.use(requireAuth(prisma));
+
+  router.post('/worker/assignments/:assignmentId/sessions', async (request, response) => {
+    const user = response.locals.user as AuthUser;
+    const { id: assignmentId } = routeIdSchema.parse({ id: request.params.assignmentId });
+    const assignment = assertFound(await prisma.trainingAssignment.findFirst({
+      where: { id: assignmentId, worker: { userId: user.id, status: 'ACTIVE' } },
+      include: { training: { select: { id: true, status: true } }, worker: { select: { id: true, organizationId: true } } },
+    }), 'Training assignment was not found.');
+    await findWorkerProfile(prisma, assignment.worker.organizationId, user.id);
+    if (assignment.training.status !== 'PUBLISHED') throw new HttpError(409, 'TRAINING_NOT_PUBLISHED', 'This assigned training is not currently available.');
+    const existing = await prisma.trainingSession.findFirst({ where: { assignmentId, status: { in: ['IN_PROGRESS', 'PAUSED'] } }, orderBy: { updatedAt: 'desc' } });
+    if (existing) {
+      const session = existing.status === 'PAUSED'
+        ? await prisma.trainingSession.update({ where: { id: existing.id }, data: { status: 'IN_PROGRESS' } })
+        : existing;
+      await prisma.trainingAssignment.updateMany({ where: { id: assignmentId, status: 'ASSIGNED' }, data: { status: 'IN_PROGRESS' } });
+      sendData(response, session);
+      return;
+    }
+    const session = await prisma.$transaction(async (transaction) => {
+      const created = await transaction.trainingSession.create({ data: { learnerId: user.id, projectId: assignment.trainingId, assignmentId } });
+      await transaction.trainingAssignment.update({ where: { id: assignmentId }, data: { status: 'IN_PROGRESS' } });
+      return created;
+    });
+    sendData(response, session, 201);
+  });
 
   router.post('/trainings/:trainingId/sessions', async (request, response) => {
     const user = response.locals.user as AuthUser;
@@ -180,14 +206,29 @@ export function createLearningRouter(prisma: PrismaClient): Router {
     const user = response.locals.user as AuthUser;
     const { sessionId, attemptId } = sessionRouteSchema.parse({ sessionId: request.params.sessionId, attemptId: request.params.attemptId });
     const session = await findSessionAccess(prisma, sessionId, user.id);
-    if (session.project.ownerId !== user.id) throw new HttpError(404, 'NOT_FOUND', 'Training session was not found.');
+    if (session.project.organizationId) await requireOwnerOrganization(prisma, session.project.organizationId, user.id);
+    else if (session.project.ownerId !== user.id) throw new HttpError(404, 'NOT_FOUND', 'Training session was not found.');
     const input = reviewAttemptSchema.parse(request.body);
     const attempt = assertFound(await prisma.stepAttempt.findFirst({ where: { id: attemptId, sessionId } }), 'Attempt was not found.');
     if (attempt.verificationStatus !== 'NEEDS_REVIEW') throw new HttpError(409, 'ATTEMPT_NOT_REVIEWABLE', 'Only attempts awaiting human review can be reviewed.');
-    sendData(response, await prisma.stepAttempt.update({
+    const reviewed = await prisma.stepAttempt.update({
       where: { id: attemptId },
       data: { verificationStatus: input.status, feedback: input.feedback, verificationMethod: 'HUMAN_REVIEW', reviewedAt: new Date(), simulated: false },
-    }));
+    });
+    if (session.assignmentId) {
+      const [steps, latestAttempts] = await Promise.all([
+        prisma.trainingStep.findMany({ where: { projectId: session.projectId }, select: { id: true } }),
+        prisma.stepAttempt.findMany({ where: { sessionId }, orderBy: { attemptNumber: 'desc' }, distinct: ['stepId'], select: { stepId: true, verificationStatus: true } }),
+      ]);
+      const latestByStep = new Map(latestAttempts.map((item) => [item.stepId, item.verificationStatus]));
+      const allPassed = steps.length > 0 && steps.every((item) => latestByStep.get(item.id) === 'PASSED');
+      const anyNeedsWork = latestAttempts.some((item) => item.verificationStatus === 'NEEDS_IMPROVEMENT');
+      await prisma.trainingAssignment.update({
+        where: { id: session.assignmentId },
+        data: { status: allPassed ? 'PASSED' : anyNeedsWork ? 'NEEDS_IMPROVEMENT' : 'SUBMITTED' },
+      });
+    }
+    sendData(response, reviewed);
   });
 
   router.get('/sessions/:sessionId/report', async (request, response) => {
@@ -216,7 +257,15 @@ export function createLearningRouter(prisma: PrismaClient): Router {
       throw new HttpError(409, 'STEPS_REMAIN', 'Every step needs a human-reviewed pass before the session can be completed.');
     }
 
-    await prisma.trainingSession.update({ where: { id: sessionId }, data: { status: 'COMPLETED', completedAt: new Date() } });
+    await prisma.$transaction(async (transaction) => {
+      await transaction.trainingSession.update({ where: { id: sessionId }, data: { status: 'COMPLETED', completedAt: new Date() } });
+      if (session.assignmentId) {
+        await transaction.trainingAssignment.update({
+          where: { id: session.assignmentId },
+          data: session.assignmentId ? { status: 'PASSED', completedAt: new Date() } : {},
+        });
+      }
+    });
     sendData(response, await persistReport(prisma, sessionId));
   });
 

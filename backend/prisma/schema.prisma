@@ -41,6 +41,33 @@ enum StorageProvider {
   LOCAL
 }
 
+enum MembershipRole {
+  OWNER
+  WORKER
+}
+
+enum WorkerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  IN_PROGRESS
+  SUBMITTED
+  NEEDS_IMPROVEMENT
+  PASSED
+  APPROVED
+  OVERDUE
+}
+
+enum CompetencyStatus {
+  IN_TRAINING
+  PENDING_REVIEW
+  VERIFIED
+  NEEDS_REASSESSMENT
+}
+
 model User {
   id           String        @id @default(cuid())
   name         String        @db.VarChar(100)
@@ -53,6 +80,90 @@ model User {
   sessions     TrainingSession[]
   mediaAssets  MediaAsset[]
   authSessions AuthSession[]
+  memberships  OrganizationMembership[]
+  workerProfiles WorkerProfile[]
+  assignedTrainings TrainingAssignment[] @relation("AssignedBy")
+  competencyApprovals WorkerCompetency[] @relation("CompetencyApprover")
+  auditEvents AuditEvent[]
+}
+
+model Organization {
+  id          String                   @id @default(cuid())
+  name        String                   @db.VarChar(120)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  memberships OrganizationMembership[]
+  workers     WorkerProfile[]
+  trainings   TrainingProject[]
+  assignments TrainingAssignment[]
+  competencies Competency[]
+  auditEvents AuditEvent[]
+
+  @@index([createdAt])
+}
+
+model OrganizationMembership {
+  id             String         @id @default(cuid())
+  organizationId String
+  userId         String
+  role           MembershipRole
+  createdAt      DateTime       @default(now())
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId, role])
+}
+
+model WorkerProfile {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?
+  employeeId     String       @db.VarChar(80)
+  fullName       String       @db.VarChar(120)
+  email          String       @db.VarChar(254)
+  department     String       @default("") @db.VarChar(100)
+  status         WorkerStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invitation     WorkerInvitation?
+  assignments    TrainingAssignment[]
+  competencies   WorkerCompetency[]
+
+  @@unique([organizationId, employeeId])
+  @@unique([organizationId, email])
+  @@unique([organizationId, userId])
+  @@index([organizationId, status, fullName])
+}
+
+model WorkerInvitation {
+  id              String        @id @default(cuid())
+  workerProfileId String        @unique
+  tokenHash       String        @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  workerProfile   WorkerProfile @relation(fields: [workerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt, acceptedAt])
+}
+
+model AuditEvent {
+  id             String       @id @default(cuid())
+  organizationId String
+  actorUserId    String?
+  action         String       @db.VarChar(80)
+  subjectType    String       @db.VarChar(80)
+  subjectId      String       @db.VarChar(80)
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor          User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([subjectType, subjectId])
 }
 
 model AuthSession {
@@ -69,6 +180,7 @@ model AuthSession {
 model TrainingProject {
   id           String            @id @default(cuid())
   ownerId      String
+  organizationId String?
   title        String            @db.VarChar(120)
   description  String            @db.VarChar(1000)
   category     String            @db.VarChar(80)
@@ -82,11 +194,15 @@ model TrainingProject {
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
   owner        User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   steps        TrainingStep[]
   mediaAssets  MediaAsset[]
   sessions     TrainingSession[]
+  assignments  TrainingAssignment[]
+  competencies Competency[]
 
   @@index([ownerId, updatedAt])
+  @@index([organizationId, updatedAt])
   @@index([status, updatedAt])
 }
 
@@ -106,6 +222,7 @@ model TrainingStep {
   project      TrainingProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   attempts     StepAttempt[]
   mediaAssets  MediaAsset[]
+  competencyRequirements CompetencyRequirement[]
 
   @@unique([projectId, position])
   @@index([projectId, position])
@@ -140,6 +257,7 @@ model TrainingSession {
   id               String                @id @default(cuid())
   learnerId        String
   projectId        String
+  assignmentId     String?
   currentPosition  Int                   @default(0)
   status           TrainingSessionStatus @default(IN_PROGRESS)
   startedAt        DateTime              @default(now())
@@ -147,12 +265,101 @@ model TrainingSession {
   updatedAt        DateTime              @updatedAt
   learner          User                  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
   project          TrainingProject      @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  assignment       TrainingAssignment?  @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
   attempts         StepAttempt[]
   report           AssessmentReport?
   mediaAssets      MediaAsset[]
 
   @@index([learnerId, status, updatedAt])
   @@index([projectId, startedAt])
+  @@index([assignmentId])
+}
+
+model TrainingAssignment {
+  id                  String           @id @default(cuid())
+  organizationId      String
+  workerProfileId     String
+  trainingId          String
+  assignedByUserId    String
+  status              AssignmentStatus @default(ASSIGNED)
+  dueAt               DateTime?
+  requiresOwnerApproval Boolean        @default(true)
+  assignedAt          DateTime         @default(now())
+  completedAt         DateTime?
+  approvedAt          DateTime?
+  updatedAt           DateTime         @updatedAt
+  organization        Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  worker              WorkerProfile    @relation(fields: [workerProfileId], references: [id], onDelete: Cascade)
+  training            TrainingProject  @relation(fields: [trainingId], references: [id], onDelete: Restrict)
+  assignedBy          User             @relation("AssignedBy", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+  competencies        TrainingAssignmentCompetency[]
+  sessions            TrainingSession[]
+
+  @@unique([workerProfileId, trainingId])
+  @@index([organizationId, status, dueAt])
+  @@index([workerProfileId, status, dueAt])
+}
+
+model Competency {
+  id              String           @id @default(cuid())
+  organizationId  String
+  trainingId      String
+  name            String           @db.VarChar(120)
+  description     String           @db.VarChar(1000)
+  reassessmentDays Int?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  training        TrainingProject  @relation(fields: [trainingId], references: [id], onDelete: Restrict)
+  requirements    CompetencyRequirement[]
+  workerRecords   WorkerCompetency[]
+  assignments     TrainingAssignmentCompetency[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, updatedAt])
+}
+
+model CompetencyRequirement {
+  id            String      @id @default(cuid())
+  competencyId  String
+  stepId        String
+  position      Int
+  required      Boolean     @default(true)
+  competency    Competency  @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  step          TrainingStep @relation(fields: [stepId], references: [id], onDelete: Restrict)
+
+  @@unique([competencyId, stepId])
+  @@unique([competencyId, position])
+  @@index([stepId])
+}
+
+model WorkerCompetency {
+  id             String          @id @default(cuid())
+  workerProfileId String
+  competencyId   String
+  status         CompetencyStatus @default(IN_TRAINING)
+  approvedByUserId String?
+  verifiedAt     DateTime?
+  reassessAt     DateTime?
+  feedback       String          @default("") @db.VarChar(2000)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  worker         WorkerProfile   @relation(fields: [workerProfileId], references: [id], onDelete: Cascade)
+  competency     Competency      @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  approvedBy     User?           @relation("CompetencyApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([workerProfileId, competencyId])
+  @@index([workerProfileId, status, reassessAt])
+}
+
+model TrainingAssignmentCompetency {
+  assignmentId String
+  competencyId String
+  assignment   TrainingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  competency   Competency         @relation(fields: [competencyId], references: [id], onDelete: Restrict)
+
+  @@id([assignmentId, competencyId])
+  @@index([competencyId])
 }
 
 model StepAttempt {

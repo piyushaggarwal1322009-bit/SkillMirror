@@ -74,3 +74,65 @@ export const generationSchema = z.object({ mode: z.literal('demo') });
 export const routeIdSchema = z.object({ id: idSchema });
 export const nestedRouteSchema = z.object({ trainingId: idSchema, stepId: idSchema.optional() });
 export const sessionRouteSchema = z.object({ sessionId: idSchema, stepId: idSchema.optional(), attemptId: idSchema.optional() });
+
+export const organizationQuerySchema = z.object({ organizationId: idSchema });
+
+export const createOrganizationSchema = z.object({ name: z.string().trim().min(2).max(120) });
+
+export const listWorkersSchema = z.object({
+  organizationId: idSchema,
+  page: z.coerce.number().int().min(1).max(10000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+  search: z.string().trim().max(100).optional(),
+  department: z.string().trim().max(100).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
+
+export const createWorkerSchema = z.object({
+  organizationId: idSchema,
+  fullName: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(254),
+  employeeId: z.string().trim().min(1).max(80),
+  department: boundedText(100).default(''),
+});
+
+export const acceptWorkerInvitationSchema = z.object({ token: z.string().min(32).max(128) });
+
+export const ownerTrainingSchema = createTrainingSchema.extend({ organizationId: idSchema });
+
+export const createAssignmentSchema = z.object({
+  organizationId: idSchema,
+  trainingId: idSchema,
+  workerProfileIds: z.array(idSchema).min(1).max(100),
+  competencyIds: z.array(idSchema).max(50).default([]),
+  dueAt: z.coerce.date().nullable().optional(),
+  requiresOwnerApproval: z.boolean().default(true),
+}).refine((input) => new Set(input.workerProfileIds).size === input.workerProfileIds.length, 'Worker profile IDs must be unique.')
+  .refine((input) => new Set(input.competencyIds).size === input.competencyIds.length, 'Competency IDs must be unique.');
+
+export const createCompetencySchema = z.object({
+  organizationId: idSchema,
+  trainingId: idSchema,
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().min(1).max(1000),
+  requiredStepIds: z.array(idSchema).min(1).max(50),
+  reassessmentDays: z.number().int().min(1).max(3650).nullable().default(null),
+}).refine((input) => new Set(input.requiredStepIds).size === input.requiredStepIds.length, 'Step IDs must be unique.');
+
+export const updateAssignmentSchema = z.object({
+  dueAt: z.coerce.date().nullable().optional(),
+  status: z.enum(['ASSIGNED', 'IN_PROGRESS', 'SUBMITTED', 'NEEDS_IMPROVEMENT', 'PASSED', 'APPROVED']).optional(),
+}).refine((input) => Object.keys(input).length > 0, 'Provide at least one field to update.');
+
+export const approveCompetencySchema = z.object({
+  organizationId: idSchema,
+  workerProfileId: idSchema,
+  feedback: boundedText(2000).default(''),
+});
+
+export const ownerReportQuerySchema = z.object({
+  organizationId: idSchema,
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  department: z.string().trim().max(100).optional(),
+});
