@@ -78,8 +78,8 @@ h1, h2, h3, h4 { font-family: 'Space Grotesk', 'DM Sans', sans-serif; letter-spa
 .top-search:hover { border-color: var(--line); background: #fff; }
 .top-search kbd { margin-left: auto; padding: 2px 5px; border: 1px solid #e0e4df; border-radius: 4px; color: #929b94; background: #fff; font: 10px 'DM Sans', sans-serif; }
 .content-area { max-width: 1480px; margin: 0 auto; padding: 33px 42px 70px; }
-.mobile-menu, .mobile-bottom-nav { display: none; }
-.sidebar-close, .sidebar-backdrop { display: none; }
+.mobile-menu.icon-button, .mobile-bottom-nav { display: none; }
+.sidebar-close.icon-button, .sidebar-backdrop { display: none; }
 
 .button { display: inline-flex; min-height: 41px; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid transparent; border-radius: 7px; cursor: pointer; font-size: 11px; font-weight: 600; transition: background .16s ease, border-color .16s ease, transform .16s ease; }
 .button:not(:disabled):active { transform: translateY(1px); }
@@ -659,12 +659,12 @@ h1, h2, h3, h4 { font-family: 'Space Grotesk', 'DM Sans', sans-serif; letter-spa
 @media (max-width: 780px) {
   .sidebar { width: 265px; transform: translateX(-100%); transition: transform .2s ease; box-shadow: none; }
   .sidebar-open { transform: translateX(0); box-shadow: 10px 0 35px rgba(16,28,21,.2); }
-  .sidebar-close { position: absolute; top: 25px; right: 11px; z-index: 1; display: inline-grid; color: #d8e1da; }
+  .sidebar-close.icon-button { position: absolute; top: 25px; right: 11px; z-index: 1; display: inline-grid; color: #d8e1da; }
   .sidebar-close:hover { border-color: rgba(255,255,255,.18); color: #fff; background: rgba(255,255,255,.08); }
   .sidebar-backdrop { position: fixed; z-index: 29; inset: 0; display: block; border: 0; background: rgba(16,28,21,.38); }
   .main-column { margin-left: 0; }
   .topbar { height: 60px; gap: 10px; padding: 0 16px; }
-  .mobile-menu { display: inline-grid; }
+  .mobile-menu.icon-button { display: inline-grid; }
   .breadcrumb { flex: 1; gap: 7px; font-size: 9px; }
   .topbar-actions { gap: 8px; }
   .top-search { min-width: unset; width: 33px; height: 34px; justify-content: center; padding: 0; }
