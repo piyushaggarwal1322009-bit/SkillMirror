@@ -13,7 +13,9 @@
 ## Remaining
 
 - Add CI for frontend, backend, and Prisma schema checks.
-- Apply migrations and run integration tests against a real PostgreSQL database.
+- Run the full create/publish/session/upload/review/report and user-isolation integration checks against PostgreSQL (the initial migration and health/readiness checks pass in the local Docker setup).
 - Add private durable object storage and malware scanning before production uploads.
 - Add real AI/verification providers only with validated schemas, provenance, and evaluated datasets.
 - Choose a project license before external distribution.
+
+For a Vercel frontend and Render API deployment, see [Deployment checklist](docs/DEPLOYMENT.md), including the same-site custom-domain requirement for the current session cookie and the free-tier storage/database limitations.
