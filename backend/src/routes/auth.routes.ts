@@ -58,8 +58,13 @@ export function createAuthRouter(prisma: PrismaClient, config: AppConfig): Route
     sendData(response, { loggedOut: true });
   });
 
-  router.get('/me', requireAuth(prisma), (_request, response) => {
-    sendData(response, { user: response.locals.user });
+  router.get('/me', requireAuth(prisma), async (_request, response) => {
+    const user = response.locals.user as { id: string };
+    const [memberships, workerProfiles] = await Promise.all([
+      prisma.organizationMembership.findMany({ where: { userId: user.id }, include: { organization: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } }),
+      prisma.workerProfile.findMany({ where: { userId: user.id, status: 'ACTIVE' }, select: { id: true, organizationId: true, employeeId: true, department: true, organization: { select: { id: true, name: true } } } }),
+    ]);
+    sendData(response, { user: response.locals.user, memberships, workerProfiles });
   });
 
   return router;

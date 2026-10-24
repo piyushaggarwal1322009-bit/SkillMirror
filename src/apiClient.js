@@ -53,6 +53,34 @@ export const skillMirrorApi = {
   login: (input) => request('/auth/login', json('POST', input)),
   logout: () => request('/auth/logout', { method: 'POST' }),
   me: () => request('/auth/me'),
+  listOrganizations: () => request('/owner/organizations'),
+  createOrganization: (input) => request('/owner/organizations', json('POST', input)),
+  ownerOverview: (organizationId) => request(`/owner/organizations/${encode(organizationId)}/overview`),
+  listWorkers: (organizationId, filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== '') params.set(key, String(value)); });
+    return request(`/owner/organizations/${encode(organizationId)}/workers${params.size ? `?${params}` : ''}`);
+  },
+  addWorker: (organizationId, input) => request(`/owner/organizations/${encode(organizationId)}/workers`, json('POST', input)),
+  getWorker: (organizationId, workerId) => request(`/owner/organizations/${encode(organizationId)}/workers/${encode(workerId)}`),
+  listOrganizationTrainings: (organizationId) => request(`/owner/organizations/${encode(organizationId)}/trainings`),
+  createOrganizationTraining: (organizationId, input) => request(`/owner/organizations/${encode(organizationId)}/trainings`, json('POST', input)),
+  createCompetency: (organizationId, input) => request(`/owner/organizations/${encode(organizationId)}/competencies`, json('POST', input)),
+  assignTraining: (organizationId, input) => request(`/owner/organizations/${encode(organizationId)}/assignments`, json('POST', input)),
+  listAssignments: (organizationId) => request(`/owner/organizations/${encode(organizationId)}/assignments`),
+  approveCompetency: (organizationId, competencyId, input) => request(`/owner/organizations/${encode(organizationId)}/competencies/${encode(competencyId)}/approve`, json('POST', input)),
+  ownerActivity: (organizationId) => request(`/owner/organizations/${encode(organizationId)}/activity`),
+  ownerReports: (organizationId, filters = {}) => {
+    const params = new URLSearchParams({ organizationId });
+    Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== '') params.set(key, String(value)); });
+    return request(`/owner/organizations/${encode(organizationId)}/reports?${params}`);
+  },
+  ownerReportExportUrl: (organizationId) => `${API_BASE_URL}/api/v1/owner/organizations/${encode(organizationId)}/reports/export.csv`,
+  acceptWorkerInvitation: (token) => request('/worker/invitations/accept', json('POST', { token })),
+  workerAssignments: () => request('/worker/assignments'),
+  workerAssignment: (assignmentId) => request(`/worker/assignments/${encode(assignmentId)}`),
+  workerProgress: () => request('/worker/progress'),
+  startAssignedSession: (assignmentId) => request(`/worker/assignments/${encode(assignmentId)}/sessions`, { method: 'POST' }),
   listTrainings: (filters = {}) => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== '') params.set(key, String(value)); });

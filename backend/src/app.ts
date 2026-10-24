@@ -9,6 +9,7 @@ import { createAuthRouter } from './routes/auth.routes.js';
 import { createLearningRouter } from './routes/learning.routes.js';
 import { createMediaRouter } from './routes/media.routes.js';
 import { createTrainingRouter } from './routes/training.routes.js';
+import { createFactoryRouter } from './routes/factory.routes.js';
 import { LocalMediaStorage } from './storage/localMediaStorage.js';
 import { sendData } from './utils/response.js';
 
@@ -60,6 +61,7 @@ export function createApp(dependencies: AppDependencies = {}) {
     sendData(response, { status: 'ready' });
   });
   api.use('/auth', createAuthRouter(database, config));
+  api.use(createFactoryRouter(database));
   api.use('/trainings', createTrainingRouter(database, storage));
   api.use(createLearningRouter(database));
   api.use(createMediaRouter(database, storage));
